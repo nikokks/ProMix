@@ -16,6 +16,7 @@ import dataloader_cifarn as dataloader
 from utils import *
 from fmix import *
 from tqdm import tqdm
+import copy
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR Training')
 parser.add_argument('--batch_size', default=64, type=int, help='train batchsize')
@@ -445,10 +446,12 @@ test_loader = loader.run('test')
 all_loss = [[], []]  # save the history of losses from two networks
 
 best_acc = 0
+early_stopping = 0
+warmup_step = True
 for epoch in range(args.num_epochs + 1):
     adjust_learning_rate(args, optimizer1, epoch)
 
-    if epoch < warm_up:
+    if warmup_step:
         warmup_trainloader, noisy_labels = loader.run('warmup')
 
         print('Warmup Net1')
@@ -468,5 +471,17 @@ for epoch in range(args.num_epochs + 1):
     # regard the last ckpt as the best
     if epoch % 10 == 0 and epoch > args.num_epochs - 200:
         detection(dualnet)
-
+    old_acc = best_acc
     best_acc = evaluate(test_loader, dualnet, save = True, best_acc = best_acc)
+    
+    if old_acc == best_acc:
+        early_stopping+=1
+    else:
+        early_stopping=0
+        dualnet_ = copy.deepcopy(dualnet)
+    if early_stopping>4 and warmup_step:
+        warmup_step = False
+        early_stopping = 0
+        dualnet = dualnet_
+    elif not warmup_step and early_stopping>15:
+        break
