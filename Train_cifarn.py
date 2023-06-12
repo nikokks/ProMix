@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
+from optimizer import AdaBelief
 import random
 import os
 import argparse
@@ -269,7 +270,7 @@ def evaluate(loader, model, save = False, best_acc = 0.0):
                      'epoch':epoch,
                      'acc':acc,
             }
-            save_path= os.path.join('./', args.noise_type +'best.pth.tar')
+            save_path= os.path.join('./', args.noise_type +'best_good_one.pth.tar')
             torch.save(state,save_path)
             best_acc = acc
             print(f'model saved to {save_path}!')
@@ -421,9 +422,13 @@ cudnn.benchmark = True
 
 criterion = SemiLoss()
 conf_penalty = NegEntropy()
-optimizer1 = optim.SGD([{'params': dualnet.net1.parameters()},
+#optimizer1 = optim.SGD([{'params': dualnet.net1.parameters()},
+#                        {'params': dualnet.net2.parameters()}
+#                        ], lr=args.lr, momentum=0.9, weight_decay=5e-4)
+
+optimizer1 = AdaBelief([{'params': dualnet.net1.parameters()},
                         {'params': dualnet.net2.parameters()}
-                        ], lr=args.lr, momentum=0.9, weight_decay=5e-4)
+                        ], lr=args.lr, weight_decay=5e-4)
 
 fmix = FMix()
 CE = nn.CrossEntropyLoss(reduction='none')
@@ -464,4 +469,4 @@ for epoch in range(args.num_epochs + 1):
     if epoch % 10 == 0 and epoch > args.num_epochs - 200:
         detection(dualnet)
 
-    # best_acc = evaluate(test_loader, dualnet, save = False, best_acc = best_acc)
+    best_acc = evaluate(test_loader, dualnet, save = True, best_acc = best_acc)
