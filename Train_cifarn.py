@@ -139,8 +139,8 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
             pred_net = F.one_hot(px.max(dim=1)[1], args.num_class).float()
             pred_net2 = F.one_hot(px2.max(dim=1)[1], args.num_class).float()
 
-            high_conf_cond = (labels_x * px).sum(dim=1) > args.tau
-            high_conf_cond2 = (labels_x * px2).sum(dim=1) > args.tau
+            high_conf_cond = torch.exp(((labels_x * torch.log(px)) + ((1-labels_x)*torch.log(1-px))).mean(dim=1)) > args.tau
+            high_conf_cond2 = torch.exp(((labels_x * torch.log(px2)) + ((1-labels_x)*torch.log(1-px2))).mean(dim=1))> args.tau
             w_x[high_conf_cond] = 1
             w_x2[high_conf_cond2] = 1
             pseudo_label_l = labels_x * w_x + pred_net * (1 - w_x)
@@ -335,7 +335,11 @@ def eval_train(model, all_loss, rho, num_class):
     targets_list = torch.zeros(50000)
     num_class = 0
     with torch.no_grad():
+        ok =0
         for batch_idx, (inputs, targets, index) in tqdm(enumerate(eval_loader)):
+            if ok >20:
+               break
+            ok+=1
             inputs, targets = inputs.cuda(), targets.cuda()
             outputs = model(inputs)
             num_class = outputs.shape[1]
