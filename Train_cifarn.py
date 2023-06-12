@@ -14,6 +14,7 @@ from sklearn.mixture import GaussianMixture
 import dataloader_cifarn as dataloader
 from utils import *
 from fmix import *
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR Training')
 parser.add_argument('--batch_size', default=64, type=int, help='train batchsize')
@@ -116,7 +117,7 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
 
     #unlabeled_train_iter = iter(unlabeled_trainloader)
     num_iter = (len(labeled_trainloader.dataset) // args.batch_size) + 1
-    for batch_idx, (inputs_x, inputs_x2, labels_x, w_x, w_x2, true_labels, index) in enumerate(labeled_trainloader):
+    for batch_idx, (inputs_x, inputs_x2, labels_x, w_x, w_x2, true_labels, index) in tqdm(enumerate(labeled_trainloader)):
         batch_size = inputs_x.size(0)
 
         # Transform label to one-hot
@@ -127,9 +128,9 @@ def train(epoch, net, net2, optimizer, labeled_trainloader, unlabeled_trainloade
         index = index.cuda()
         inputs_x, inputs_x2, labels_x, w_x , w_x2= inputs_x.cuda(), inputs_x2.cuda(), labels_x.cuda(), w_x.cuda(), w_x2.cuda()
         outputs_x = net(inputs_x)
-        outputs_x2 = net(inputs_x2)
+        outputs_x2 = outputs_x.clone()
         outputs_a = net2(inputs_x)
-        outputs_a2 = net2(inputs_x2)
+        outputs_a2 = outputs_a.clone()
         
         with torch.no_grad():
             # label refinement of labeled samples
@@ -225,7 +226,7 @@ def warmup(epoch, net, net2, optimizer, dataloader):
     net.train()
     net2.train()
     num_iter = (len(dataloader.dataset) // dataloader.batch_size) + 1
-    for batch_idx, (inputs_w, inputs_s, labels, _) in enumerate(dataloader):
+    for batch_idx, (inputs_w, inputs_s, labels, _) in tqdm(enumerate(dataloader)):
         inputs_w, inputs_s, labels = inputs_w.cuda(), inputs_s.cuda(), labels.cuda()
         optimizer.zero_grad()
         outputs = net(inputs_w)
@@ -334,7 +335,7 @@ def eval_train(model, all_loss, rho, num_class):
     targets_list = torch.zeros(50000)
     num_class = 0
     with torch.no_grad():
-        for batch_idx, (inputs, targets, index) in enumerate(eval_loader):
+        for batch_idx, (inputs, targets, index) in tqdm(enumerate(eval_loader)):
             inputs, targets = inputs.cuda(), targets.cuda()
             outputs = model(inputs)
             num_class = outputs.shape[1]
