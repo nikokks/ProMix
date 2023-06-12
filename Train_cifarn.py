@@ -54,6 +54,8 @@ parser.add_argument('--fmix', action='store_true', default=False)
 parser.add_argument('--use_unrel', action='store_true', default=False)
 parser.add_argument('--start_expand', default=100, type=int)
 parser.add_argument('--save_note', type=str,  default='')
+parser.add_argument('--early_stopping_warmup', type=int,  default=4)
+parser.add_argument('--eraly_stopping_training', type=int,  default=50)
 
 
 args = parser.parse_args()
@@ -474,14 +476,19 @@ for epoch in range(args.num_epochs + 1):
     old_acc = best_acc
     best_acc = evaluate(test_loader, dualnet, save = True, best_acc = best_acc)
     
+    # increment earlystopping if not improvements
     if old_acc == best_acc:
         early_stopping+=1
+    # copy the best model if improvements
     else:
         early_stopping=0
         dualnet_ = copy.deepcopy(dualnet)
-    if early_stopping>4 and warmup_step:
+
+    # if warmup done load best warmup checkpoint for second step
+    if early_stopping > args.early_stopping_warmup and warmup_step:
         warmup_step = False
         early_stopping = 0
         dualnet = dualnet_
-    elif not warmup_step and early_stopping>15:
+    # if second step ended
+    elif not warmup_step and early_stopping>args.eraly_stopping_training:
         break
